@@ -31,19 +31,21 @@ extension UIImage {
         return suffix
     }
 
-    static func batteryHUDImageWithLevel(_ level: Double?) -> UIImage? {
-        return UIImage(named: "battery_\(imageSuffixForLevel(level))")
-    }
-
-    static func reservoirHUDImageWithLevel(_ level: Double?) -> UIImage? {
-        return UIImage(named: "reservoir_\(imageSuffixForLevel(level))")
-    }
-
     static func preMealImage(selected: Bool) -> UIImage? {
         return UIImage(named: selected ? "Pre-Meal Selected" : "Pre-Meal")
     }
 
     static func workoutImage(selected: Bool) -> UIImage? {
         return UIImage(named: selected ? "workout-selected" : "workout")
+    }
+}
+
+private class FrameworkBundle {
+    static let main = Bundle(for: FrameworkBundle.self)
+}
+
+extension UIImage {
+    convenience init?(frameworkImage name: String) {
+        self.init(named: name, in: FrameworkBundle.main, with: nil)
     }
 }

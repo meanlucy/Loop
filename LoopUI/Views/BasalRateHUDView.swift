@@ -7,16 +7,20 @@
 //
 
 import UIKit
-
+import LoopKitUI
 
 public final class BasalRateHUDView: BaseHUDView {
+    
+    override public var orderPriority: HUDViewOrderPriority {
+        return 3
+    }
 
     @IBOutlet private weak var basalStateView: BasalStateView!
 
     @IBOutlet private weak var basalRateLabel: UILabel! {
         didSet {
             basalRateLabel?.text = String(format: basalRateFormatString, "–")
-            updateTintColor()
+            basalRateLabel?.textColor = .secondaryLabel
 
             accessibilityValue = LocalizedString("Unknown", comment: "Accessibility value for an unknown value")
         }
@@ -24,11 +28,6 @@ public final class BasalRateHUDView: BaseHUDView {
 
     public override func tintColorDidChange() {
         super.tintColorDidChange()
-        updateTintColor()
-    }
-
-    private func updateTintColor() {
-        basalRateLabel?.textColor = tintColor
     }
 
     private lazy var basalRateFormatString = LocalizedString("%@ U", comment: "The format string describing the basal rate.")

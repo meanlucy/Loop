@@ -1,6 +1,6 @@
-/* (No Comment) */
+/* Bundle display name */
 "CFBundleDisplayName" = "Loop";
 
-/* (No Comment) */
-"CFBundleName" = "$(PRODUCT_NAME)";
+/* Bundle name */
+"CFBundleName" = "Loop Status Extension";
 

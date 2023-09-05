@@ -7,101 +7,98 @@
 //
 
 import UIKit
-import Intents
 import LoopKit
-import UserNotifications
 
-@UIApplicationMain
-final class AppDelegate: UIResponder, UIApplicationDelegate {
-
-    private lazy var log = DiagnosticLogger.shared.forCategory("AppDelegate")
-
+final class AppDelegate: UIResponder, UIApplicationDelegate, WindowProvider {
     var window: UIWindow?
 
-    private(set) lazy var deviceManager = DeviceDataManager()
+    private let loopAppManager = LoopAppManager()
+    private let log = DiagnosticLog(category: "AppDelegate")
 
-    private var rootViewController: RootNavigationController! {
-        return window?.rootViewController as? RootNavigationController
+    // MARK: - UIApplicationDelegate - Initialization
+
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        log.default("%{public}@ with launchOptions: %{public}@", #function, String(describing: launchOptions))
+
+        setenv("CFNETWORK_DIAGNOSTICS", "3", 1)
+
+        loopAppManager.initialize(windowProvider: self, launchOptions: launchOptions)
+        loopAppManager.launch()
+        return loopAppManager.isLaunchComplete
     }
 
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
-        window?.tintColor = UIColor.tintColor
+    // MARK: - UIApplicationDelegate - Life Cycle
 
-        NotificationManager.authorize(delegate: self)
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        log.default(#function)
 
-        log.info(#function)
-
-        AnalyticsManager.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
-
-        rootViewController.rootViewController.deviceManager = deviceManager
-
-        return true
+        loopAppManager.didBecomeActive()
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
+        log.default(#function)
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
+        log.default(#function)
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-    }
-
-    func applicationDidBecomeActive(_ application: UIApplication) {
-        deviceManager.pumpManager?.updateBLEHeartbeatPreference()
+        log.default(#function)
+        
+        loopAppManager.askUserToConfirmLoopReset()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
+        log.default(#function)
     }
 
-    // MARK: - Continuity
+    // MARK: - UIApplicationDelegate - Environment
 
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([Any]?) -> Void) -> Bool {
-
-        if #available(iOS 12.0, *) {
-            if userActivity.activityType == NewCarbEntryIntent.className {
-                log.default("Restoring \(userActivity.activityType) intent")
-                rootViewController.restoreUserActivityState(.forNewCarbEntry())
-                return true
+    func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
+        DispatchQueue.main.async {
+            if self.loopAppManager.isLaunchPending {
+                self.loopAppManager.launch()
             }
         }
-
-        switch userActivity.activityType {
-        case NSUserActivity.newCarbEntryActivityType,
-             NSUserActivity.viewLoopStatusActivityType:
-            log.default("Restoring \(userActivity.activityType) activity")
-            restorationHandler([rootViewController])
-            return true
-        default:
-            return false
-        }
-    }
-}
-
-
-extension AppDelegate: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        switch response.actionIdentifier {
-        case NotificationManager.Action.retryBolus.rawValue:
-            if  let units = response.notification.request.content.userInfo[NotificationManager.UserInfoKey.bolusAmount.rawValue] as? Double,
-                let startDate = response.notification.request.content.userInfo[NotificationManager.UserInfoKey.bolusStartDate.rawValue] as? Date,
-                startDate.timeIntervalSinceNow >= TimeInterval(minutes: -5)
-            {
-                AnalyticsManager.shared.didRetryBolus()
-
-                deviceManager.enactBolus(units: units, at: startDate) { (_) in
-                    completionHandler()
-                }
-                return
-            }
-        default:
-            break
-        }
-        
-        completionHandler()
     }
 
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.badge, .sound, .alert])
+    // MARK: - UIApplicationDelegate - Remote Notification
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        log.default(#function)
+
+        loopAppManager.remoteNotificationRegistrationDidFinish(.success(deviceToken))
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        log.error("%{public}@ with error: %{public}@", #function, String(describing: error))
+        loopAppManager.remoteNotificationRegistrationDidFinish(.failure(error))
+    }
+
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        log.default(#function)
+
+        completionHandler(loopAppManager.handleRemoteNotification(userInfo as? [String: AnyObject]) ? .noData : .failed)
+    }
+    
+    // MARK: - UIApplicationDelegate - Deeplinking
+    
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        loopAppManager.handle(url)
+    }
+
+    // MARK: - UIApplicationDelegate - Continuity
+
+    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+        log.default(#function)
+
+        return loopAppManager.userActivity(userActivity, restorationHandler: restorationHandler)
+    }
+
+    // MARK: - UIApplicationDelegate - Interface
+
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        return loopAppManager.supportedInterfaceOrientations
     }
 }

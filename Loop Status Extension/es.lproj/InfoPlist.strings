@@ -2,5 +2,5 @@
 "CFBundleDisplayName" = "Loop";
 
 /* Bundle name */
-"CFBundleName" = "$(PRODUCT_NAME)";
+"CFBundleName" = "Extensión de Estado de Loop";
 

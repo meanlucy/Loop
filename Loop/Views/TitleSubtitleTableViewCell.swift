@@ -14,13 +14,14 @@ class TitleSubtitleTableViewCell: UITableViewCell {
 
     @IBOutlet weak var subtitleLabel: UILabel! {
         didSet {
-            subtitleLabel.textColor = UIColor.secondaryLabelColor
+            subtitleLabel.textColor = UIColor.secondaryLabel
         }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
 
+        updateColors()
         gradient.frame = bounds
     }
 
@@ -30,8 +31,21 @@ class TitleSubtitleTableViewCell: UITableViewCell {
         super.awakeFromNib()
 
         gradient.frame = bounds
-        gradient.colors = [UIColor.white.cgColor, UIColor.cellBackgroundColor.cgColor]
         backgroundView?.layer.insertSublayer(gradient, at: 0)
+
+        updateColors()
     }
 
+    public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+
+        updateColors()
+    }
+
+    private func updateColors() {
+        gradient.colors = [
+            UIColor.cellBackgroundColor.withAlphaComponent(0).cgColor,
+            UIColor.cellBackgroundColor.cgColor
+        ]
+    }
 }
